@@ -13,3 +13,6 @@ input[type='number'] {
   -moz-appearance: textfield;
   -webkit-appearance: textfield;
 }
+input[type="file"] {
+  display: none;
+}

@@ -4,25 +4,19 @@ import type { VariantProps } from 'class-variance-authority';
 import { motion } from 'framer-motion';
 import { PulseLoader } from 'react-spinners';
 const buttonVariants = cva(
-  'whitespace-nowrap justify-center items-center gap-2 leading-none border-2 font-medium tracking-wide font-inter h-8 w-8',
+  'whitespace-nowrap justify-center items-center gap-2 leading-none border-2 font-medium tracking-wide font-inter h-10 w-10',
   {
     variants: {
       color: {
-       blue: "border-sky-500 text-sky-500",
+       blue: "border-green-400 text-green-400",
        red: "border-rose-500 text-rose-500"
       },
 
-    //   size: {
-    //     sm: 'px-3 py-1.5 text-xs',
-    //     md: 'px-5 py-2.5 text-xs',
-    //     lg: 'px-6 py-3 text-sm',
-    //   },
       rounded: {
         sm: 'rounded-sm',
         md: 'rounded-md',
         lg: 'rounded-lg',
-        // left: 'rounded-tl-md rounded-bl-md',
-        // right: 'rounded-tr-md rounded-br-md',
+  
       },
       fullWidth: {
         true: 'flex w-full',

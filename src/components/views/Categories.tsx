@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 // import { CategoryType, updateCategories } from '../../db';
 import SortableItem from './CategoryItem';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import produce from 'immer';
 import { z } from 'zod';
 import { findIndex, map } from 'lodash';
@@ -124,6 +124,8 @@ export default function Categories({
           Varor
         </Button>
       </div>
+
+    
       {dataState && (
         <DndContext
           collisionDetection={closestCenter}

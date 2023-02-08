@@ -4,42 +4,69 @@ import Button from './components/core/Button';
 import Card from './components/core/Card';
 import { sortBy } from 'lodash';
 import { useMemo } from 'react';
-import Categories from './components/views/Categories';
 import { shallow } from 'zustand/shallow';
 import { useStore } from './store/store';
+import { HiPlus } from 'react-icons/hi';
 import {
-  CategoryType,
+  AddFormSchema,
+  addProduct,
+  // CategoryType,
   db,
   DeleteAll,
   GetAll,
   Init,
   ProductType,
-} from './db/experiment';
-import { Toaster } from 'react-hot-toast';
+  Update,
+} from './db';
+import { toast, Toaster } from 'react-hot-toast';
+import Order from './components/views/Order';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 export default function App() {
   useEffectOnce(() => {
     db();
   });
 
+  // function handleAddProduct() {
+
+  //   return
+  // }
+  // const addProductMutation = useMutation(handleAddProduct, {
+  //   onSuccess() {
+
+  //   }
+  // })
+
   const { data, isLoading, refetch } = useQuery(['products'], () =>
     GetAll<ProductType>('items')
   );
-  const {
-    data: categories,
-    // isLoading: categoriesLoading,
-    refetch: categoriesRefetch,
-  } = useQuery(['categories'], () =>
-    GetAll<CategoryType>('categories')
-  );
+  // const {
+  //   data: categories,
+  //   // isLoading: categoriesLoading,
+  //   refetch: categoriesRefetch,
+  // } = useQuery(['categories'], () =>
+  //   GetAll<CategoryType>('categories')
+  // );
+  const { register, handleSubmit, reset } = useForm<AddFormSchema>();
 
+  const addMutation = useMutation(addProduct, {
+    onSuccess() {
+      reset();
+      toast.success('Lagt till ny produkt');
+      refetch();
+    },
+  });
+  function onSubmit(data: AddFormSchema) {
+    addMutation.mutate(data);
+  }
   const sortedData = useMemo(() => {
-    const sortedArr = sortBy(data, (o) => o.category?.id);
+    const sortedArr = sortBy(data, (o) => o?.id);
     return sortedArr;
   }, [data]);
-  const sortedCategoryData = useMemo(() => {
-    const sortedArr = sortBy(categories, (o) => o.id);
-    return sortedArr;
-  }, [categories]);
+  // const sortedCategoryData = useMemo(() => {
+  //   const sortedArr = sortBy(categories, (o) => o.id);
+  //   return sortedArr;
+  // }, [categories]);
 
   function handleGenerate() {
     return Init();
@@ -47,19 +74,17 @@ export default function App() {
   const generateMutation = useMutation(handleGenerate, {
     onSuccess() {
       refetch();
-      categoriesRefetch();
+      // categoriesRefetch();
     },
   });
 
   function handleDelete() {
-    DeleteAll('items');
-    return DeleteAll('categories');
+    return DeleteAll('items');
+    // return DeleteAll('categories');
   }
   const deleteMutation = useMutation(handleDelete, {
     onSuccess() {
       refetch();
-      categoriesRefetch();
-      // refetchCompleted();
     },
   });
 
@@ -77,7 +102,7 @@ export default function App() {
           {!data && !isLoading ? (
             <h3 className='text-4xl mb-4'>Handlingslistan är tom</h3>
           ) : (
-            <h3 className='text-4xl mb-4'>Handlingslista</h3>
+            <h3 className='text-4xl mb-2'>Handlingslista</h3>
           )}
         </div>
         <div className='mb-2'>
@@ -92,8 +117,8 @@ export default function App() {
                   >
                     Radera handlingslistan
                   </Button>
-                  <Button group onClick={() => newTab('categories')}>
-                    Kategorier
+                  <Button group onClick={() => newTab('order')}>
+                    Ordning
                   </Button>
                 </>
               ) : null}
@@ -111,6 +136,25 @@ export default function App() {
 
         {currentTab === 'products' && (
           <>
+            <form
+              className='flex h-10 mb-2'
+              onSubmit={handleSubmit(onSubmit)}
+              style={{ width: 'min(100%, 900px)' }}
+            >
+              <input
+                type='text'
+                placeholder='Lägg till en egen produkt'
+                className='border border-r-0 border-gray-400/70 rounded-l-md h-full grow placeholder:text-gray-500'
+                autoComplete='off'
+                {...register('name')}
+              />
+              <button
+                type='submit'
+                className='h-full py-2 px-3 text-lg font-inter rounded-r-md border border-transparent text-white bg-blue-700 hover:bg-blue-800 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800'
+              >
+                <HiPlus />
+              </button>
+            </form>
             {data && sortedData ? (
               <main className='flex flex-col gap-y-1'>
                 {sortedData.map((item) => (
@@ -119,10 +163,10 @@ export default function App() {
                     name={item.name}
                     amount={item.amount}
                     isCompleted={item.isCompleted}
-                    category={item?.category ?? null}
                     details={item?.details ?? null}
                     refetch={refetch}
-                    // refetchCompleted={refetchCompleted}
+                    hasImg={item?.hasImg}
+                    uploadedImg={item?.uploadedImg}
                   />
                 ))}
               </main>
@@ -135,7 +179,12 @@ export default function App() {
             ) : null}
           </>
         )}
-        {currentTab === 'categories' &&
+
+        {currentTab === 'order' && data && (
+          <Order data={data} refetch={refetch} />
+        )}
+
+        {/* {currentTab === 'categories' &&
           categories &&
           sortedCategoryData && (
             <Categories
@@ -143,7 +192,7 @@ export default function App() {
               refetch={categoriesRefetch}
               refetchProducts={refetch}
             />
-          )}
+          )} */}
       </div>
     </>
   );

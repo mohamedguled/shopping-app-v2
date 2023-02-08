@@ -1,6 +1,11 @@
 import { cva } from 'class-variance-authority';
 import type { VariantProps } from 'class-variance-authority';
-import { HTMLAttributes, useEffect, useState } from 'react';
+import {
+  ChangeEvent,
+  HTMLAttributes,
+  useEffect,
+  useState,
+} from 'react';
 import { formatText } from '../../utils/formatText';
 import firstLetter from '../../utils/firstLetter';
 import { HiPlus, HiMinus } from 'react-icons/hi';
@@ -8,13 +13,16 @@ import OutlineButton from './OutlineButton';
 import { AiFillDelete, AiFillTags } from 'react-icons/ai';
 import { MdClose } from 'react-icons/md';
 import { BiCheck } from 'react-icons/bi';
+import { FaUpload } from 'react-icons/fa';
 import { z } from 'zod';
 import {
-  CategoryType,
+  // CategoryType,
   Delete,
   ToggleComplete,
   UpdateAmount,
 } from '../../db/experiment';
+import { useMutation } from '@tanstack/react-query';
+import { updateProductImage } from '../../db';
 const cardVariants = cva(
   'relative rounded-md flex pr-3 transition-all duration-150 items-center justify-between gap-x-2 w-full',
   {
@@ -34,6 +42,9 @@ const imageVariants = cva(
       isCompleted: {
         true: 'opacity-50',
       },
+      hasImg: {
+        false: 'flex justify-center items-center bg-white relative',
+      },
     },
   }
 );
@@ -45,9 +56,11 @@ export interface CardProps
   name: string;
   amount: number;
   isCompleted: boolean;
-  category: CategoryType | null;
+  // category: CategoryType | null;
   details: string | null;
   refetch: () => void;
+  hasImg?: boolean;
+  uploadedImg?: string;
   // refetchCompleted: () => void;
 }
 
@@ -59,8 +72,10 @@ export default function Card({
   amount,
   details,
   refetch,
+  hasImg,
+  uploadedImg,
   // refetchCompleted,
-  category,
+  // category,
 
   ...props
 }: CardProps) {
@@ -87,6 +102,38 @@ export default function Card({
     setTimeout(() => setIsLoading(false), 100);
   }
 
+  async function newImage(url: string) {
+    await updateProductImage(name, url);
+    return name;
+  }
+  const newImageMutation = useMutation(newImage, {
+    onSuccess() {
+      refetch();
+      console.log('new image');
+    },
+    onError() {
+      console.log('failed to update image');
+    },
+  });
+
+  function handleFile(files: FileList | null) {
+    if (!files) return;
+
+    let file = files[0];
+
+    let reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function () {
+      console.log(reader.result);
+      const urlSchema = z.string();
+
+      newImageMutation.mutate(urlSchema.parse(reader.result));
+    };
+    reader.onerror = function () {
+      console.log(reader.error);
+    };
+  }
+
   return (
     <div
       style={{ width: 'min(100%, 900px)' }}
@@ -94,14 +141,41 @@ export default function Card({
       {...props}
     >
       <section className='flex items-center gap-2'>
-        <div
-          className={imageVariants({ isCompleted: completed })}
-          style={{
-            backgroundImage: `url('/${formatText.dash(
-              firstLetter.lowerCase(name)
-            )}.jpg')`,
-          }}
-        ></div>
+        {hasImg === false ? (
+          <div
+            className={imageVariants({
+              isCompleted: completed,
+              hasImg,
+            })}
+          >
+            <label className='cursor-pointer' htmlFor='file'>
+              <FaUpload className='text-4xl' />
+            </label>
+            <input
+              onChange={(e) => handleFile(e.currentTarget.files)}
+              type='file'
+              name='file'
+              id='file'
+            />
+          </div>
+        ) : (
+          <div
+            className={imageVariants({ isCompleted: completed })}
+            style={{
+              // backgroundImage: `url('/${formatText.dash(
+              //   firstLetter.lowerCase(name)
+              // )}.jpg')`,
+              backgroundImage: `${
+                uploadedImg
+                  ? `url('${uploadedImg}')`
+                  : `url('/${formatText.dash(
+                      firstLetter.lowerCase(name)
+                    )}.jpg')`
+              }`,
+            }}
+          ></div>
+        )}
+
         <div className='flex flex-col justify-center ml-2'>
           {/* {unitAmount && (
             <p className='text-gray-300'>{unitAmount}</p>
@@ -124,7 +198,7 @@ export default function Card({
             {name}
           </h3>
 
-          {category && (
+          {/* {category && (
             <div
               className={`flex items-center gap-1 text-sm ${
                 completed ? 'text-gray-400' : 'text-sky-300'
@@ -133,11 +207,11 @@ export default function Card({
               <AiFillTags />
               <p>{category.name}</p>
             </div>
-          )}
+          )} */}
         </div>
       </section>
-      <section className='flex items-center gap-x-3 pr-3'>
-        <div className='flex gap-x-[1px] items-center text-white'>
+      <section className='flex items-center gap-x-5 pr-3'>
+        <div className='flex gap-x-[5px] items-center text-white'>
           <button
             className='p-1'
             onClick={() =>
@@ -153,7 +227,7 @@ export default function Card({
           </button>
 
           <input
-            className='bg-transparent w-[5ch] text-center px-0 py-1 m-0 rounded-md flex justify-center items-center text-xs font-bold border-2'
+            className='bg-transparent w-[5ch] text-center px-0 py-1 m-0 rounded-md flex justify-center items-center text-sm font-bold border-2'
             type='number'
             min='1'
             max='100'
@@ -170,7 +244,7 @@ export default function Card({
           </button>
         </div>
 
-        <div className='flex gap-1'>
+        <div className='flex gap-[11px]'>
           <OutlineButton
             onClick={() => handleToggleCompleted()}
             disabled={isLoading}
@@ -178,13 +252,13 @@ export default function Card({
             group
           >
             {completed ? (
-              <MdClose className='text-lg' />
+              <MdClose className='text-3xl' />
             ) : (
-              <BiCheck className='text-lg' />
+              <BiCheck className='text-3xl' />
             )}
           </OutlineButton>
           <OutlineButton onClick={handleDelete} color='red' group>
-            <AiFillDelete className='text-base' />
+            <AiFillDelete className='text-xl' />
           </OutlineButton>
         </div>
       </section>

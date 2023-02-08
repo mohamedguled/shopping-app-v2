@@ -1,212 +1,266 @@
-import { openDB, DBSchema } from 'idb';
+import { openDB, DBSchema, StoreNames } from 'idb';
 import { filter, find, map } from 'lodash';
 import { z } from 'zod';
 import { produce } from 'immer';
 
-const categoryKeys = z.enum([
-  'Frukt & Grönsaker',
-  'Mejeri & Ägg',
-  'Drycker',
-  'Fryst',
-  'Fisk',
-  'Bröd & Kakor',
-  'Kött, Fågel & Fisk',
-]);
-export type CategoryName = z.infer<typeof categoryKeys>;
-const notEmpty = z.any().array().nonempty();
-
 const product = z.object({
   name: z.string(),
-  categoryKey: categoryKeys,
   id: z.number().optional(),
   isCompleted: z.boolean(),
   amount: z.number(),
-  category: z
-    .object({
-      name: categoryKeys,
-      id: z.number(),
-    })
-    .optional(),
+  details: z.string().optional(),
+  hasImg: z.boolean().optional(),
+  uploadedImg: z.string().optional(),
+});
+
+const preset = z.object({
+  name: z.string(),
+  data: product.array(),
 });
 
 export type ProductType = z.infer<typeof product>;
-export type CategoryType = {
-  name: CategoryName;
-  id: number;
-};
-
+export type PresetType = z.infer<typeof preset>;
 interface MyDB extends DBSchema {
-  categories: {
-    value: CategoryType;
-    key: string;
-  };
   items: {
     key: string;
     value: ProductType;
   };
+  presets: {
+    key: string;
+    value: PresetType;
+  };
 }
-
 export async function db() {
   const idb = await openDB<MyDB>('my-db', 1, {
     upgrade(db) {
-      db.createObjectStore('categories');
       db.createObjectStore('items');
+      db.createObjectStore('presets');
     },
   });
   return idb;
 }
 
-const Categories: CategoryType[] = [
-  {
-    id: 1,
-    name: 'Mejeri & Ägg',
-  },
-  {
-    id: 2,
-    name: 'Bröd & Kakor',
-  },
-  {
-    id: 3,
-    name: 'Kött, Fågel & Fisk',
-  },
-];
-
 const Products: ProductType[] = [
   {
-    name: 'Mjölk',
-    categoryKey: 'Mejeri & Ägg',
+    name: 'Laktosfri Mjölk',
     amount: 1,
     isCompleted: false,
+    details: 'Arla, 1.5 liter',
   },
   {
     name: 'Ost',
-    categoryKey: 'Mejeri & Ägg',
     amount: 1,
     isCompleted: false,
+    details: 'Port salut 750g - färdigskivad',
   },
   {
     name: 'Bröd',
-    categoryKey: 'Bröd & Kakor',
     amount: 1,
     isCompleted: false,
   },
   {
     name: 'Pålägg',
-    categoryKey: 'Kött, Fågel & Fisk',
     amount: 1,
     isCompleted: false,
   },
+  {
+    name: 'Smör',
+    amount: 1,
+    isCompleted: false,
+    details: 'Bregott, 600g - normalsaltat',
+  },
+  {
+    name: 'Knäckebröd',
+    amount: 1,
+    isCompleted: false,
+    details: 'Leksands, havre spröd gräddat',
+  },
+  {
+    name: 'Te',
+    amount: 1,
+    isCompleted: false,
+    details: 'Lipton, Earl Gray Classic - 100pack',
+  },
+  {
+    name: 'Kaffe',
+    amount: 1,
+    isCompleted: false,
+    details: 'Néscafe lyx, mellanrost',
+  },
+  {
+    name: 'Apelsinmarmelad',
+    amount: 1,
+    isCompleted: false,
+    details: 'BOB, Flaska',
+  },
+  {
+    name: 'Citronsyra',
+    amount: 1,
+    isCompleted: false,
+    details: 'Santa Maria',
+  },
+  {
+    name: 'Honung',
+    amount: 1,
+    isCompleted: false,
+    details: 'ICA-basic, 650g',
+  },
+  {
+    name: 'Kaviar',
+    amount: 1,
+    isCompleted: false,
+    details: 'Kalles kaviar - Original',
+  },
+  {
+    name: 'Laktosfritt smör',
+    amount: 1,
+    isCompleted: false,
+    details: 'Normalsaltat, 300g',
+  },
+  {
+    name: 'Mjukost',
+    amount: 1,
+    isCompleted: false,
+    details: 'Kalvi, räkost och skinkost - 275g',
+  },
 ];
 
-export async function generate() {
-  map(Categories, async (category) => {
-    await (await db()).put('categories', category, category.name);
-  });
-  map(Products, async (product, i) => {
-    const newState = produce(product, (draft) => {
-      draft.id = i + 1;
-      draft.isCompleted = false;
-      draft.category = find(
-        Categories,
-        (o) => o.name === draft.categoryKey
-      );
-    });
-    await (await db()).put('items', newState, newState.name);
-  });
-}
-
-export async function updateCategories(categories: CategoryType[]) {
-  map(categories, async (category) => {
-    await (await db()).put('categories', category, category.name);
-  });
-  map(Products, async (product, i) => {
-    const newState = produce(product, (draft) => {
-      draft.id = i + 1;
-      draft.isCompleted = false;
-      draft.category = find(
-        categories,
-        (o) => o.name === draft.categoryKey
-      );
-    });
-    await (await db()).put('items', newState, newState.name);
-  });
-}
-
-export async function getProducts() {
+export async function GetAll<Type>(storeName: StoreNames<MyDB>) {
   const store = (await db())
-    .transaction('items')
-    .objectStore('items');
+    .transaction(storeName)
+    .objectStore(storeName);
 
   const items = store.getAll();
-
-  // items.then((data) => console.log(data));
   if ((await items).length <= 0) return null;
 
-  return items;
-}
-export async function getCategories() {
-  const store = (await db())
-    .transaction('categories')
-    .objectStore('categories');
-
-  const items = store.getAll();
-
-  // items.then((data) => console.log(data));
-  if ((await items).length <= 0) return null;
-
-  return items;
+  return items as Promise<Type[]>;
 }
 
-export async function deleteProducts() {
+export async function Get<Type>(
+  storeName: StoreNames<MyDB>,
+  name: string
+) {
+  const item = await (await db()).get(storeName, name);
+
+  return item as Type;
+}
+
+export async function Update(
+  storeName: StoreNames<MyDB>,
+  data: any,
+  key: string
+) {
+  return await (await db()).put(storeName, data, key);
+}
+
+export async function UpdateAmount(name: string, newAmount: number) {
   try {
-    await (await db()).clear('items');
-    return 'Deleted';
-  } catch (err) {
-    throw new Error('Failed to delete products');
+    const item = await Get<ProductType>('items', name);
+
+    if (item) {
+      const newItem = produce(item, (draft) => {
+        draft.amount = newAmount;
+      });
+
+      await Update('items', newItem, item.name);
+    }
+  } catch (e) {
+    throw new Error('Failed to update amount');
   }
 }
 
-export async function changeAmount(name: string, newAmount: number) {
-  // console.log(name);
-  const item = (await (
-    await db()
-  ).get('items', `${name}`)) as ProductType;
+export async function updateProductImage(
+  name: string,
+  imgUrl: string
+) {
+  try {
+    const item = await Get<ProductType>('items', name);
+    if (item) {
+      const newItem = produce(item, (draft) => {
+        draft.hasImg = true;
+        draft.uploadedImg = imgUrl;
+      });
 
-  if (item) {
-    const newItem = produce(item, (draft) => {
-      draft.amount = newAmount;
+      await Update('items', newItem, item.name);
+    }
+  } catch (e) {
+    throw new Error('Failed to update image');
+  }
+}
+
+export async function DeleteAll(storeName: StoreNames<MyDB>) {
+  try {
+    await (await db()).clear(storeName);
+  } catch (e) {
+    throw new Error('Failed to delete');
+  }
+}
+
+export async function Delete(
+  storeName: StoreNames<MyDB>,
+  key: string
+) {
+  try {
+    await (await db()).delete(storeName, key);
+  } catch (e) {
+    throw new Error('Failed to delete');
+  }
+}
+
+export async function updateProducts(items: ProductType[]) {
+  map(items, async (item) => {
+    await (await db()).put('items', item, item.name);
+  });
+}
+
+export async function Init() {
+  map(Products, async (product, i) => {
+    const newState = produce(product, (draft) => {
+      draft.id = i + 1;
+      draft.isCompleted = false;
+      draft.hasImg = true;
     });
-    // console.log(newItem);
-    await (await db()).put('items', newItem, newItem.name);
+    await Update('items', newState, newState.name);
+  });
+}
+const schema = z.object({
+  name: z.string(),
+});
+export type AddFormSchema = z.infer<typeof schema>;
+export async function addProduct(data: AddFormSchema) {
+  try {
+    const currentAmount = await GetAll<ProductType[] | null>('items');
+    if (currentAmount) {
+      const length = currentAmount.length;
+
+      const newData: ProductType = {
+        name: data.name,
+        id: length + 1,
+        isCompleted: false,
+        amount: 0,
+        hasImg: false,
+      };
+
+      await Update('items', newData, data.name);
+    }
+  } catch (e) {
+    throw new Error('Failed to add new product');
   }
 }
-
-export async function toggleComplete(
+export async function ToggleComplete(
   name: string,
   newBoolean: boolean
 ) {
-  const item = (await (
-    await db()
-  ).get('items', `${name}`)) as ProductType;
-  if (item) {
-    const newItem = produce(item, (draft) => {
-      draft.isCompleted = !newBoolean;
-    });
-    // console.log(newItem);
-    await (await db()).put('items', newItem, newItem.name);
+  try {
+    const item = await Get<ProductType>('items', name);
+    if (item) {
+      const newItem = produce(item, (draft) => {
+        draft.isCompleted = !newBoolean;
+      });
+
+      await (await db()).put('items', newItem, newItem.name);
+    }
+  } catch (e) {
+    throw new Error('Failed to toggle');
   }
-}
-
-export async function deleteProduct(name: string) {
-  await (await db()).delete('items', name);
-}
-
-export async function getCompleted() {
-  const items = getProducts();
-
-  const c = filter(await items, { isCompleted: true });
-  // console.log(c.length);
-
-  if (c.length <= 0) return null;
-  return c;
 }
